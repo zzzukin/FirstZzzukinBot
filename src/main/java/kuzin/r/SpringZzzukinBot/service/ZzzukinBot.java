@@ -152,11 +152,34 @@ public class ZzzukinBot extends TelegramLongPollingBot {
 
     private void helpCommandHandler(Message message) throws TelegramApiException {
         SendMessage sendMessage = getSendMessage(message);
-        sendMessage.setText(String.format("Ok, so, what can i do:\n" +
-                        "I keep a close eye on the weather%s" +
-                        "and can predict how good the fishing " +
-                        "will be if you tell me about the result%s",
-                parseEmoji(":eye:"), parseEmoji(":smile:")));
+//        sendMessage.setText(String.format("Ok, so, what can i do:\n" +
+//                        "I keep a close eye on the weather%s" +
+//                        "and can predict how good the fishing " +
+//                        "will be if you tell me about the result%s",
+//                parseEmoji(":eye:"), parseEmoji(":smile:")));
+
+        sendMessage.setText(String.format("Привет, я Херишеф - древнеегипетский бог, " +
+                        "покровитель Гераклеополя, бог плодородия и воды, покровитель " +
+                        "охоты и рыболовства%s%s%s https://en.wikipedia.org/wiki/Heryshaf. " +
+                        "Кеххе, кеххе... да, так, вот. Я спал примерно 2000 тысячи лет пока " +
+                        "меня не разбудил Ммм... некто Андрей Скляров%s%s Похоже, что за " +
+                        "время сна, я все еще не растерял своих навыков и могу предсказывать " +
+                        "насколько реки будут плодородны и богаты рыбой. Ты можешь попросить " +
+                        "меня об этом, командой /start. В обмен на свои предсказания я хочу, " +
+                        "чтобы ты делился со мной своми результатами, насколько река была " +
+                        "добра к тебе и плодородна, ок?%s Видишь там в нижнем левом углу " +
+                        "синяя кнопка меню? Она поможет тебе, удачи%s"
+                        ,
+                parseEmoji("\uD83D\uDE0E"),
+                parseEmoji("\uD83D\uDC1F"),
+                parseEmoji("\uD83C\uDFA3"),
+                parseEmoji("\uD83E\uDD78"),
+                parseEmoji("\uD83D\uDE21"),
+                parseEmoji("\uD83D\uDE09"),
+                parseEmoji("\uD83D\uDE42")
+
+        ));
+
         execute(sendMessage);
     }
 
