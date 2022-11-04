@@ -25,4 +25,10 @@ public class Main {
 
     @JsonProperty("humidity")
     private int humidity;
+
+    @JsonProperty("sea_level")
+    private int seaLevel;
+
+    @JsonProperty("grnd_level")
+    private int groundLevel;
 }

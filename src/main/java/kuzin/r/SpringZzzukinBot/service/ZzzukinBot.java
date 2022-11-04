@@ -11,6 +11,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -28,15 +30,17 @@ import java.util.List;
 
 @Slf4j
 @Component
+@EnableScheduling
 public class ZzzukinBot extends TelegramLongPollingBot {
-    final BotConfig config;
 
     @Autowired
     WeatherRepository weatherRepository;
     @Autowired
     WeatherService weatherService;
     @Autowired
-    WaterLevelService <WaterLevel> waterLevelService;
+    WaterLevelService waterLevelService;
+
+    private final BotConfig config;
 
     public ZzzukinBot(BotConfig config) throws TelegramApiException {
         this.config = config;
@@ -45,7 +49,6 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         botCommands.add(new BotCommand("/start", "Predict if the fishing will be good"));
         botCommands.add(new BotCommand("/update", "Update weather"));
         botCommands.add(new BotCommand("/weather", "Show weather"));
-//        botCommands.add(new BotCommand("/level", "Show water level"));
         execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
     }
 
@@ -84,32 +87,27 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                 case "/weather":
                     weatherCommandHandler(message);
                     break;
-//                case "/level":
-//                    weatherLevelCommandHandler(message);
-//                    break;
                 default:
                     unsupportedCommandHandler(message);
             }
         }
     }
 
-    private void weatherLevelCommandHandler(Message message) throws TelegramApiException {
-        WaterLevel level = getWaterLevel();
-        SendMessage sendMessage = getSendMessage(message);
-        sendMessage.setText(String.format("Ok, so, %s, today water level: %scm (%s)",
-                message.getChat().getFirstName(), level.getLevel(), level.getDiff()));
-        execute(sendMessage);
+    @Scheduled(cron = "*/10 * * * * *", zone = "Europe/Moscow")
+    public void updateWeatherBySchedule() throws IOException {
+        log.info("Update weather data {}", new Date());
+        updateWeather();
     }
 
     private void updateCommandHandler(Message message) throws IOException, TelegramApiException {
-        saveWeather();
+        updateWeather();
         SendMessage sendMessage = getSendMessage(message);
         sendMessage.setText(String.format("Ok, so, %s, the weather has been updated!",
                 message.getChat().getFirstName()));
         execute(sendMessage);
     }
 
-    private void saveWeather() throws IOException {
+    private void updateWeather() throws IOException {
         log.info("Get weather data from server");
         JSONObject json = weatherService.getWeather();
         log.info("Weather data: {}", json);
@@ -117,7 +115,8 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         OpenWeatherMap openWeatherMap = mapper.readValue(json.toString(), OpenWeatherMap.class);
 
         log.info("Get water level from server");
-        WaterLevel level = getWaterLevel();
+        WaterLevel level = waterLevelService.getWaterLevel();
+        log.info("Received water level: {}({})", level.getLevel(), level.getDiff());
 
         WeatherData data = new WeatherData();
         data.setTimestamp(new Date().getTime());
@@ -126,9 +125,16 @@ public class ZzzukinBot extends TelegramLongPollingBot {
 
         log.info("Save data to DB");
         weatherRepository.save(data);
+
+        if (weatherRepository.count() > config.getDbRecordsNum()) {
+            log.info("Delete oldest data from DB");
+            long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
+            log.info("Top timestamp: {}", timestamp);
+            weatherRepository.deleteByTimestamp(timestamp);
+        }
     }
 
-    private WeatherData loadWeather() {
+    private WeatherData getWeather() {
         return weatherRepository.findTopByOrderByTimestampDesc();
     }
 
@@ -137,12 +143,6 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(chatId));
         return sendMessage;
-    }
-
-    private WaterLevel getWaterLevel() {
-        WaterLevel level = waterLevelService.getWaterLevel();
-        log.info("Received water level: {}({})",  level.getLevel(), level.getDiff());
-        return level;
     }
 
     private void helpCommandHandler(Message message) throws TelegramApiException {
@@ -166,7 +166,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     }
 
     private void weatherCommandHandler(Message message) throws TelegramApiException {
-        WeatherData data = loadWeather();
+        WeatherData data = getWeather();
         OpenWeatherMap openWeatherMap = data.getOpenWeatherMap();
         WaterLevel waterLevel = data.getWaterLevel();
         SendMessage sendMessage = getSendMessage(message);
