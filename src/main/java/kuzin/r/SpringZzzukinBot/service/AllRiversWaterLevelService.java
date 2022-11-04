@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class AllRiversWaterLevelService implements WaterLevelService<WaterLevel> {
+public class AllRiversWaterLevelService implements WaterLevelService {
 
     private final String url;
 

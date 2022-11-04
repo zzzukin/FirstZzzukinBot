@@ -48,6 +48,8 @@ public class OpenWeatherService implements WeatherService {
             URL url = new URL(urlAddress);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
+//            connection.setConnectTimeout(1000 * 120);
+            connection.setReadTimeout(1000 * 60);
             connection.connect();
             int responseCode = connection.getResponseCode();
             if (responseCode == 200) {

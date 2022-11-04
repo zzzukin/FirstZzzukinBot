@@ -1,5 +1,7 @@
 package kuzin.r.SpringZzzukinBot.service;
 
-public interface WaterLevelService<T> {
-     T getWaterLevel();
+import kuzin.r.SpringZzzukinBot.model.WaterLevel;
+
+public interface WaterLevelService {
+     WaterLevel getWaterLevel();
 }
