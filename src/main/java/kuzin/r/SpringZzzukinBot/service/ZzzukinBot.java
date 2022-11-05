@@ -3,6 +3,7 @@ package kuzin.r.SpringZzzukinBot.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vdurmont.emoji.EmojiParser;
 import kuzin.r.SpringZzzukinBot.config.BotConfig;
+import kuzin.r.SpringZzzukinBot.consts.Emoji;
 import kuzin.r.SpringZzzukinBot.model.WaterLevel;
 import kuzin.r.SpringZzzukinBot.model.OpenWeatherMap;
 import kuzin.r.SpringZzzukinBot.model.WeatherData;
@@ -161,7 +162,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         sendMessage.setText(String.format("Привет, я Херишеф - древнеегипетский бог, " +
                         "покровитель Гераклеополя, бог плодородия и воды, покровитель " +
                         "охоты и рыболовства%s%s%s https://en.wikipedia.org/wiki/Heryshaf. " +
-                        "Кеххе, кеххе... да, так, вот. Я спал примерно 2000 тысячи лет пока " +
+                        "Кеххе, кеххе... да, так, вот. Я спал примерно 2000 лет пока " +
                         "меня не разбудил Ммм... некто Андрей Скляров%s%s Похоже, что за " +
                         "время сна, я все еще не растерял своих навыков и могу предсказывать " +
                         "насколько реки будут плодородны и богаты рыбой. Ты можешь попросить " +
@@ -170,13 +171,13 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                         "добра к тебе и плодородна, ок?%s Видишь там в нижнем левом углу " +
                         "синяя кнопка меню? Она поможет тебе, удачи%s"
                         ,
-                parseEmoji("\uD83D\uDE0E"),
-                parseEmoji("\uD83D\uDC1F"),
-                parseEmoji("\uD83C\uDFA3"),
-                parseEmoji("\uD83E\uDD78"),
-                parseEmoji("\uD83D\uDE21"),
-                parseEmoji("\uD83D\uDE09"),
-                parseEmoji("\uD83D\uDE42")
+                Emoji.SMILING_FACE_WITH_SUNGLASSES,
+                Emoji.FISH,
+                Emoji.FISHING_POLE_AND_FISH,
+                Emoji.DISGUISED_FACE,
+                Emoji.RAGE,
+                Emoji.WINKING_FACE,
+                Emoji.SLIGHTLY_SMILING_FACE
 
         ));
 
@@ -189,7 +190,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                         "At the moment Dmitry Kuzin @da_kuzin%s is teaching me how to do it. " +
                         "I'll be sure to let you know when I find out and we'll " +
                         "celebrate it together%s",
-                message.getChat().getFirstName(), parseEmoji(":smirk:"), parseEmoji(":champagne:")));
+                message.getChat().getFirstName(), Emoji.SMIRKING_FACE, Emoji.CLINKING_GLASSES));
         execute(sendMessage);
     }
 
@@ -208,7 +209,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                         "Wind Speed: %sm/s\n" +
                         "Water Level: %scm(%s)\n",
                 message.getChat().getFirstName(),
-                parseEmoji(":cloud:"),
+                Emoji.SUN_BEHIND_CLOUD,
                 openWeatherMap.getSys().getCountry(),
                 openWeatherMap.getName(),
                 openWeatherMap.getMain().getTemp(),
@@ -225,11 +226,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     private void unsupportedCommandHandler(Message message) throws TelegramApiException {
         SendMessage sendMessage = getSendMessage(message);
         sendMessage.setText(String.format("Hello, %s, nice to meet you!%s",
-                message.getChat().getFirstName(), parseEmoji(":smile:")));
+                message.getChat().getFirstName(), Emoji.SLIGHTLY_SMILING_FACE));
         execute(sendMessage);
-    }
-
-    private String parseEmoji(String kod) {
-        return EmojiParser.parseToUnicode(kod);
     }
 }
