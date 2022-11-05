@@ -42,6 +42,8 @@ public class ZzzukinBot extends TelegramLongPollingBot {
 
     private final BotConfig config;
 
+    private WeatherData lastSavedData = new WeatherData();
+
     public ZzzukinBot(BotConfig config) throws TelegramApiException {
         this.config = config;
         List<BotCommand> botCommands = new ArrayList<>();
@@ -93,7 +95,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         }
     }
 
-    @Scheduled(cron = "*/10 * * * * *", zone = "Europe/Moscow")
+    @Scheduled(cron = "*/${bot.update.data.time} * * * * *", zone = "Europe/Moscow")
     public void updateWeatherBySchedule() throws IOException {
         log.info("Update weather data {}", new Date());
         updateWeather();
@@ -123,14 +125,17 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         data.setOpenWeatherMap(openWeatherMap);
         data.setWaterLevel(level);
 
-        log.info("Save data to DB");
-        weatherRepository.save(data);
+        if(!data.getOpenWeatherMap().equals(lastSavedData.getOpenWeatherMap())) {
+            log.info("Save data to DB");
+            weatherRepository.save(data);
+            lastSavedData = data;
 
-        if (weatherRepository.count() > config.getDbRecordsNum()) {
-            log.info("Delete oldest data from DB");
-            long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
-            log.info("Top timestamp: {}", timestamp);
-            weatherRepository.deleteByTimestamp(timestamp);
+            if (weatherRepository.count() > config.getDbRecordsNum()) {
+                log.info("Delete oldest data from DB");
+                long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
+                log.info("Top timestamp: {}", timestamp);
+                weatherRepository.deleteByTimestamp(timestamp);
+            }
         }
     }
 
