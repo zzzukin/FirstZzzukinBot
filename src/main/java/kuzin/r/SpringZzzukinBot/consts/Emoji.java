@@ -12,7 +12,10 @@ public enum Emoji {
     SLIGHTLY_SMILING_FACE("🙂"),
     SMIRKING_FACE("😏"),
     CLINKING_GLASSES("🥂"),
-    SUN_BEHIND_CLOUD("⛅");
+    SUN_BEHIND_CLOUD("⛅"),
+    PARTYING_FACE("🥳"),
+    THINKING_FACE("🤔"),
+    WAVING_HAND("👋");
 
 
     private final String emoji;
