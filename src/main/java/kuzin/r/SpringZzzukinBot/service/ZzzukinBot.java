@@ -156,7 +156,8 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         }
     }
 
-    @Scheduled(cron = "* */${bot.update.data.time} * * * *", zone = "Europe/Moscow")
+//    @Scheduled(cron = "* */${bot.update.data.time} * * * *", zone = "Europe/Moscow")
+    @Scheduled(fixedDelay = 1000 * 60 * 60)
     public void updateWeatherBySchedule() throws IOException {
         log.info("Update weather data {}", new Date());
         updateWeather();
