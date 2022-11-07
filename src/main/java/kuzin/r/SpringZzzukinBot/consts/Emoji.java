@@ -15,7 +15,8 @@ public enum Emoji {
     SUN_BEHIND_CLOUD("⛅"),
     PARTYING_FACE("🥳"),
     THINKING_FACE("🤔"),
-    WAVING_HAND("👋");
+    WAVING_HAND("👋"),
+    UPSIDE_DOWN_FACE("🙃");
 
 
     private final String emoji;

@@ -5,6 +5,7 @@ import kuzin.r.SpringZzzukinBot.config.BotConfig;
 import kuzin.r.SpringZzzukinBot.consts.Emoji;
 import kuzin.r.SpringZzzukinBot.consts.Result;
 import kuzin.r.SpringZzzukinBot.model.OpenWeatherMap;
+import kuzin.r.SpringZzzukinBot.model.ResultLocation;
 import kuzin.r.SpringZzzukinBot.model.WaterLevel;
 import kuzin.r.SpringZzzukinBot.model.WeatherData;
 import kuzin.r.SpringZzzukinBot.repository.WeatherRepository;
@@ -20,6 +21,7 @@ import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -28,6 +30,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import javax.transaction.Transactional;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -48,16 +51,16 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     private final BotConfig config;
 
     private WeatherData lastSavedData = new WeatherData();
+    private Date waitLocationTimer = new Date();
 
     public ZzzukinBot(BotConfig config) throws TelegramApiException {
         this.config = config;
         List<BotCommand> botCommands = new ArrayList<>();
-        botCommands.add(new BotCommand("/help", "What this bot can do"));
-        botCommands.add(new BotCommand("/start", "Predict if the fishing will be good"));
-//        botCommands.add(new BotCommand("/update", "Update weather"));
-        botCommands.add(new BotCommand("/weather", "Show weather"));
-        botCommands.add(new BotCommand("/result", "Send result"));
-        botCommands.add(new BotCommand("/about", "About this bot"));
+        botCommands.add(new BotCommand("/help", "Помощь"));
+        botCommands.add(new BotCommand("/start", "Спрогнозировать доброту рек"));
+        botCommands.add(new BotCommand("/weather", "Узнать погоду"));
+        botCommands.add(new BotCommand("/result", "Рассказать о результатах"));
+        botCommands.add(new BotCommand("/about", "Узнать обо мне"));
         execute(new SetMyCommands(botCommands, new BotCommandScopeDefault(), null));
     }
 
@@ -74,20 +77,11 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-
-        if(update.hasPoll()) {
-            log.info("Is pull!");
-        }
+        Message message = update.getMessage();
 
         if (update.hasMessage() && update.getMessage().hasText()) {
-            Message message = update.getMessage();
-            String messageText = message.getText();
-            Long chatId = message.getChatId();
 
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(String.valueOf(chatId));
-
-            switch (messageText) {
+            switch (message.getText()) {
                 case "/start":
                     startCommandHandler(message);
                     break;
@@ -107,65 +101,68 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                     unsupportedCommandHandler(message);
             }
         }
+
         if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String callbackQueryData = callbackQuery.getData();
-
             for (Result result : Result.values()) {
                 if (callbackQueryData.equals(result.name())) {
                     EditMessageText editMessageText = getEditMessageText(callbackQuery.getMessage());
                     editMessageText.setText(String.format("Твой результат сегодня - %s! " +
-                                    "Спасибо тебе мой друг за ответ%s",
+                                    "Спасибо тебе мой друг за ответ%s\n" +
+                                    "Теперь укажи пожалуйста свое место положение.\n" +
+                                    "Если не знаешь как это сделать нажми /location_help",
                             result.getText(),
                             Emoji.WINKING_FACE
                     ));
+
+                    updateWeather();
+
+                    WeatherData data = getWeather();
+                    log.info("Timestamp for adding result author: {}", data.getTimestamp());
+                    data.setResult(result.getText());
+                    data.setResultAuthor(callbackQuery.getMessage().getChat().getFirstName());
+
+                    log.info("Add result author and save data to DB");
+                    saveWeather(data);
+
+                    waitLocationTimer = new Date();
+
                     execute(editMessageText);
                 }
             }
         }
+
+        if (update.hasMessage() && message.getLocation() != null) {
+            if((new Date()).getTime() - waitLocationTimer.getTime() < (1000 * 60 * 2)) {
+
+                Location location = message.getLocation();
+                WeatherData data = getWeather();
+                log.info("Timestamp for adding result location: {}", data.getTimestamp());
+                ResultLocation resultLocation = new ResultLocation(location.getLongitude(), location.getLongitude());
+                data.setResultLocation(resultLocation);
+
+                log.info("Add result location and save data to DB");
+                saveWeather(data);
+
+                SendMessage sendMessage = getSendMessage(message);
+                sendMessage.setText(String.format("Спасибо, %s, я запомнил%s",
+                        message.getChat().getFirstName(),
+                        Emoji.WINKING_FACE
+                ));
+
+                execute(sendMessage);
+            }
+        }
     }
 
-    private void aboutCommandHandler(Message message) throws TelegramApiException {
-        SendMessage sendMessage = getSendMessage(message);
-        sendMessage.setText(String.format("Привет%s, я Херишеф - древнеегипетский бог, " +
-                        "покровитель Гераклеополя, бог плодородия и воды, покровитель " +
-                        "охоты и рыболовства%s%s%s https://en.wikipedia.org/wiki/Heryshaf " +
-                        "Кеххе, кеххе... да, так, вот. Я спал примерно 2000 лет пока " +
-                        "меня не разбудил Ммм... некто Андрей Скляров%s%s Но похоже, что за " +
-                        "время сна, я все еще не растерял своих навыков и могу предсказывать " +
-                        "насколько реки будут плодородны и богаты рыбой. Ты можешь попросить " +
-                        "меня об этом, командой /start. В обмен на свои предсказания я хочу, " +
-                        "чтобы ты делился со мной своми результатами /result, насколько река была " +
-                        "добра к тебе и плодородна, ок?%s Видишь там в нижнем левом углу " +
-                        "синяя кнопка меню? Она поможет тебе, удачи%s\n\n" +
-                        "P.S. Кстати у мнея так же есть создатель @zzzukin\n" +
-                        "Для любознательных он оставил информацию о том как я устроен:\n" +
-                        "github: https://github.com/zzzukin/FirstZzzukinBot\n" +
-                        "А так же информацию о том, чё хранит мой разум (PostgreSQL):\n" +
-                        "Host: ec2-54-228-32-29.eu-west-1.compute.amazonaws.com\n" +
-                        "Database: dbb51r25o3g2dm\n" +
-                        "User: ksdajtrjehfehl\n" +
-                        "Port: 5432\n" +
-                        "Password: 3115791733bc6525c8f7af6dae083aa7456dee4d2a6e7cc8034ab477d2dc3fdf"
-                ,
-                Emoji.WAVING_HAND,
-                Emoji.SMILING_FACE_WITH_SUNGLASSES,
-                Emoji.FISH,
-                Emoji.FISHING_POLE_AND_FISH,
-                Emoji.DISGUISED_FACE,
-                Emoji.RAGE,
-                Emoji.WINKING_FACE,
-                Emoji.SLIGHTLY_SMILING_FACE
-        ));
-        execute(sendMessage);
-    }
-
-    @Scheduled(cron = "*/${bot.update.data.time} * * * * *", zone = "Europe/Moscow")
+    @Scheduled(cron = "* */${bot.update.data.time} * * * *", zone = "Europe/Moscow")
     public void updateWeatherBySchedule() throws IOException {
         log.info("Update weather data {}", new Date());
         updateWeather();
     }
 
+    @Transactional
     private void updateWeather() throws IOException {
         log.info("Get weather data from server");
         JSONObject json = weatherService.getWeather();
@@ -187,15 +184,19 @@ public class ZzzukinBot extends TelegramLongPollingBot {
 
         if (!openWeatherMap.equals(lastOpenWeatherMap) || !waterLevel.equals(lastWaterLevel)) {
             log.info("Save data to DB");
-            weatherRepository.save(data);
+            saveWeather(data);
             lastSavedData = data;
+        }
+    }
 
-            if (weatherRepository.count() > config.getDbRecordsNum()) {
-                log.info("Delete oldest data from DB");
-                long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
-                log.info("Top timestamp: {}", timestamp);
-                weatherRepository.deleteByTimestamp(timestamp);
-            }
+    private void saveWeather(WeatherData data) {
+        weatherRepository.save(data);
+
+        if (weatherRepository.count() > config.getDbRecordsNum()) {
+            log.info("Delete oldest data from DB");
+            long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
+            log.info("Top timestamp: {}", timestamp);
+            weatherRepository.deleteByTimestamp(timestamp);
         }
     }
 
@@ -222,11 +223,12 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     private void helpCommandHandler(Message message) throws TelegramApiException {
         SendMessage sendMessage = getSendMessage(message);
         sendMessage.setText(String.format("%s, я с удовольствием поделюсь с " +
-                        "тобой своими знаниями\n" +
-                "Используй, пожалуйста%s:\n\n" +
-                "/start - Прогноз о плодородии рек\n" +
-                "/weather - Погода сейчас\n" +
-                "/about - Обо мне",
+                        "тобой своими знаниями%s\n" +
+                        "Используй, пожалуйста:\n\n" +
+                        "/start - Спрогнозировать доброту рек\n" +
+                        "/weather - Узнать погоду\n" +
+                        "/result - Рассказать о результатах\n" +
+                        "/about - Узнать обо мне",
                 message.getChat().getFirstName(),
                 Emoji.SLIGHTLY_SMILING_FACE
         ));
@@ -257,7 +259,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         sendMessage.setText(String.format("А погода нынче такая, %s%s\n\n" +
                         "Страна: %s\n" +
                         "Город: %s\n" +
-                        "Температура: %sC (ощущается как %sC)\n" +
+                        "Температура: %sC (ощущается %sC)\n" +
                         "Влажность: %s%%\n" +
                         "Давление: %sгПа\n" +
                         "Направление ветра: %s\n" +
@@ -304,11 +306,47 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         execute(sendMessage);
     }
 
+    private void aboutCommandHandler(Message message) throws TelegramApiException {
+        SendMessage sendMessage = getSendMessage(message);
+        sendMessage.setText(String.format("Привет%s, я Херишеф - древнеегипетский бог, " +
+                        "покровитель Гераклеополя, бог плодородия и воды, покровитель " +
+                        "охоты и рыболовства%s%s%s https://en.wikipedia.org/wiki/Heryshaf " +
+                        "Кеххе, кеххе... да, так, вот. Я спал примерно 2000 лет пока " +
+                        "меня не разбудил Ммм... некто Андрей Скляров%s%s Но похоже, что за " +
+                        "время сна, я все еще не растерял своих навыков и могу предсказывать " +
+                        "насколько реки будут плодородны и богаты рыбой. Ты можешь попросить " +
+                        "меня об этом, командой /start. В обмен на свои предсказания я хочу, " +
+                        "чтобы ты делился со мной своми результатами /result, насколько река была " +
+                        "добра к тебе и плодородна, ок?%s Видишь там в нижнем левом углу " +
+                        "синяя кнопка меню? Она поможет тебе, удачи%s\n\n" +
+                        "P.S. Кстати у мнея так же есть создатель @zzzukin\n" +
+                        "Для любознательных он оставил информацию о том как я устроен:\n" +
+                        "github: https://github.com/zzzukin/FirstZzzukinBot\n" +
+                        "А так же информацию о том, чё хранит мой разум (PostgreSQL):\n" +
+                        "Host: ec2-54-228-32-29.eu-west-1.compute.amazonaws.com\n" +
+                        "Database: dbb51r25o3g2dm\n" +
+                        "User: ksdajtrjehfehl\n" +
+                        "Port: 5432\n" +
+                        "Password: 3115791733bc6525c8f7af6dae083aa7456dee4d2a6e7cc8034ab477d2dc3fdf"
+                ,
+                Emoji.WAVING_HAND,
+                Emoji.SMILING_FACE_WITH_SUNGLASSES,
+                Emoji.FISH,
+                Emoji.FISHING_POLE_AND_FISH,
+                Emoji.DISGUISED_FACE,
+                Emoji.RAGE,
+                Emoji.WINKING_FACE,
+                Emoji.SLIGHTLY_SMILING_FACE
+        ));
+        execute(sendMessage);
+    }
+
     private void unsupportedCommandHandler(Message message) throws TelegramApiException {
         SendMessage sendMessage = getSendMessage(message);
-        sendMessage.setText(String.format("Привет, %s, nice to meet you!%s",
+        sendMessage.setText(String.format("Привет, %s, %s, %s",
                 message.getChat().getFirstName(),
-                Emoji.WINKING_FACE));
+                message.getText(),
+                Emoji.UPSIDE_DOWN_FACE));
         execute(sendMessage);
     }
 }
