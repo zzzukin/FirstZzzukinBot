@@ -19,13 +19,11 @@ public class AllRiversWaterLevelService implements WaterLevelService {
 
     private final String url;
 
-    public AllRiversWaterLevelService(
-            @Value("${water.lvl.url}") String url) {
+    public AllRiversWaterLevelService(@Value("${water.lvl.url}") String url) {
         this.url = url;
-        log.info("Water level URL: {}", url);
     }
 
-// Search html:
+    // Search html:
 // <li class="list-item"> <span>Уровень воды: (<a href="/gauge/don-rostov-na-donu/waterlevel">график</a>)</span> <b>42 см (-8) </b> </li>
     @Override
     public WaterLevel getWaterLevel() {
@@ -33,7 +31,7 @@ public class AllRiversWaterLevelService implements WaterLevelService {
         try {
             Document doc = Jsoup.connect(url).get();
             Elements elements = doc.select("li.list-item").select("b:contains(см)");
-            if(!elements.isEmpty()) {
+            if (!elements.isEmpty()) {
                 ArrayList<String> digits = Arrays.stream(elements.first().text()
                                 .replaceAll("[()]", "")
                                 .split(" "))
@@ -42,8 +40,7 @@ public class AllRiversWaterLevelService implements WaterLevelService {
 
                 level.setLevel(digits.get(0));
                 level.setDiff(digits.get(1));
-            }
-            else {
+            } else {
                 log.info("Water level not found: {}", url);
                 throw new RuntimeException(String.format("Water level not found: %s", url));
             }
@@ -53,5 +50,10 @@ public class AllRiversWaterLevelService implements WaterLevelService {
         }
 
         return level;
+    }
+
+    @Override
+    public String getResource() {
+        return url;
     }
 }

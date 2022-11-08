@@ -14,15 +14,16 @@ public class WeatherData {
     @Id
     private long timestamp;
 
-    @Embedded
-    OpenWeatherMap openWeatherMap;
+    String result = "";
+
+    String resultAuthor = "";
 
     @Embedded
-    WaterLevel waterLevel;
+    OpenWeatherMap openWeatherMap = new OpenWeatherMap();
 
-    String result;
+    @Embedded
+    WaterLevel waterLevel = new WaterLevel();
 
-    String resultAuthor;
-
-    ResultLocation resultLocation;
+    @Embedded
+    ResultLocation resultLocation = new ResultLocation();
 }

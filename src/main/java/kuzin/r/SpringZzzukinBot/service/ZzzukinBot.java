@@ -109,44 +109,37 @@ public class ZzzukinBot extends TelegramLongPollingBot {
                 if (callbackQueryData.equals(result.name())) {
                     EditMessageText editMessageText = getEditMessageText(callbackQuery.getMessage());
                     editMessageText.setText(String.format("Твой результат сегодня - %s! " +
-                                    "Спасибо тебе мой друг за ответ%s\n" +
-                                    "Теперь укажи пожалуйста свое место положение.\n" +
-                                    "Если не знаешь как это сделать нажми /location_help",
+                                    "Спасибо тебе мой друг за ответ\n" +
+                                    "Теперь укажи мне, пожалуйста, местоположение%s",
                             result.getText(),
                             Emoji.WINKING_FACE
                     ));
 
-                    updateWeather();
-
-                    WeatherData data = getWeather();
-                    log.info("Timestamp for adding result author: {}", data.getTimestamp());
+                    updateData(getWeatherData());
+                    WeatherData data = loadData();
                     data.setResult(result.getText());
-                    data.setResultAuthor(callbackQuery.getMessage().getChat().getFirstName());
-
-                    log.info("Add result author and save data to DB");
-                    saveWeather(data);
+                    String author = callbackQuery.getMessage().getChat().getFirstName();
+                    data.setResultAuthor(author);
+                    log.info("Add result author: {}", author);
+                    saveData(data);
 
                     waitLocationTimer = new Date();
-
                     execute(editMessageText);
                 }
             }
         }
 
         if (update.hasMessage() && message.getLocation() != null) {
-            if((new Date()).getTime() - waitLocationTimer.getTime() < (1000 * 60 * 2)) {
-
+            if ((new Date()).getTime() - waitLocationTimer.getTime() < (1000 * 60 * 2)) {
                 Location location = message.getLocation();
-                WeatherData data = getWeather();
-                log.info("Timestamp for adding result location: {}", data.getTimestamp());
+                WeatherData data = loadData();
                 ResultLocation resultLocation = new ResultLocation(location.getLongitude(), location.getLongitude());
                 data.setResultLocation(resultLocation);
-
-                log.info("Add result location and save data to DB");
-                saveWeather(data);
+                log.info("Add result location: {}", resultLocation);
+                saveData(data);
 
                 SendMessage sendMessage = getSendMessage(message);
-                sendMessage.setText(String.format("Спасибо, %s, я запомнил%s",
+                sendMessage.setText(String.format("Хорошо, %s, я запомнил%s",
                         message.getChat().getFirstName(),
                         Emoji.WINKING_FACE
                 ));
@@ -156,22 +149,33 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         }
     }
 
-//    @Scheduled(cron = "* */${bot.update.data.time} * * * *", zone = "Europe/Moscow")
+    //@Scheduled(cron = "* */${bot.update.data.time} * * * *", zone = "Europe/Moscow")
     @Scheduled(fixedDelay = 1000 * 60 * 60)
-    public void updateWeatherBySchedule() throws IOException {
-        log.info("Update weather data {}", new Date());
-        updateWeather();
+    public void updateDataBySchedule() throws IOException {
+        log.info("Update data by scheduler {}", new Date());
+        updateData(getWeatherData());
+    }
+
+    private void updateData(WeatherData data) {
+        if (!data.getOpenWeatherMap().equals(lastSavedData.getOpenWeatherMap())
+                || !data.getWaterLevel().equals(lastSavedData.getWaterLevel())
+                || !data.getResultAuthor().equals(lastSavedData.getResultAuthor())
+                || !data.getResultLocation().equals(lastSavedData.getResultLocation())
+                || !data.getResult().equals(lastSavedData.getResult())
+        ) {
+            lastSavedData = saveData(data);
+        }
     }
 
     @Transactional
-    private void updateWeather() throws IOException {
-        log.info("Get weather data from server");
+    private WeatherData getWeatherData() throws IOException {
+        log.info("Get weather data from: {}", weatherService.getResource());
         JSONObject json = weatherService.getWeather();
         log.info("Weather data: {}", json);
         ObjectMapper mapper = new ObjectMapper();
         OpenWeatherMap openWeatherMap = mapper.readValue(json.toString(), OpenWeatherMap.class);
 
-        log.info("Get water level from server");
+        log.info("Get water level from: {}", waterLevelService.getResource());
         WaterLevel waterLevel = waterLevelService.getWaterLevel();
         log.info("Received water level: {}({})", waterLevel.getLevel(), waterLevel.getDiff());
 
@@ -180,28 +184,22 @@ public class ZzzukinBot extends TelegramLongPollingBot {
         data.setOpenWeatherMap(openWeatherMap);
         data.setWaterLevel(waterLevel);
 
-        OpenWeatherMap lastOpenWeatherMap = lastSavedData.getOpenWeatherMap();
-        WaterLevel lastWaterLevel = lastSavedData.getWaterLevel();
-
-        if (!openWeatherMap.equals(lastOpenWeatherMap) || !waterLevel.equals(lastWaterLevel)) {
-            log.info("Save data to DB");
-            saveWeather(data);
-            lastSavedData = data;
-        }
+        return data;
     }
 
-    private void saveWeather(WeatherData data) {
+    private WeatherData saveData(WeatherData data) {
+        log.info("Update data");
         weatherRepository.save(data);
 
         if (weatherRepository.count() > config.getDbRecordsNum()) {
-            log.info("Delete oldest data from DB");
             long timestamp = weatherRepository.findTopByOrderByTimestampAsc().getTimestamp();
-            log.info("Top timestamp: {}", timestamp);
             weatherRepository.deleteByTimestamp(timestamp);
         }
+
+        return data;
     }
 
-    private WeatherData getWeather() {
+    private WeatherData loadData() {
         return weatherRepository.findTopByOrderByTimestampDesc();
     }
 
@@ -253,7 +251,7 @@ public class ZzzukinBot extends TelegramLongPollingBot {
     }
 
     private void weatherCommandHandler(Message message) throws TelegramApiException {
-        WeatherData data = getWeather();
+        WeatherData data = loadData();
         OpenWeatherMap openWeatherMap = data.getOpenWeatherMap();
         WaterLevel waterLevel = data.getWaterLevel();
         SendMessage sendMessage = getSendMessage(message);

@@ -5,6 +5,7 @@ import lombok.Data;
 
 import javax.persistence.*;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @Embeddable
@@ -90,5 +91,18 @@ public class OpenWeatherMap {
                 ", name='" + name + '\'' +
                 ", cod=" + cod +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        OpenWeatherMap that = (OpenWeatherMap) o;
+        return visibility == that.visibility && timezone == that.timezone && id == that.id && cod == that.cod && Objects.equals(coordinates, that.coordinates) && Objects.equals(weather, that.weather) && Objects.equals(base, that.base) && Objects.equals(main, that.main) && Objects.equals(wind, that.wind) && Objects.equals(clouds, that.clouds) && Objects.equals(rain, that.rain) && Objects.equals(snow, that.snow) && Objects.equals(sys, that.sys) && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(coordinates, weather, base, main, visibility, wind, clouds, rain, snow, sys, timezone, id, name, cod);
     }
 }

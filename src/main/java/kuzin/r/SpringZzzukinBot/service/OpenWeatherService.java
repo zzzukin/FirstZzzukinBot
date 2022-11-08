@@ -32,7 +32,6 @@ public class OpenWeatherService implements WeatherService {
         this.city = city;
         this.url = url;
         this.lang = lang;
-        log.info("Weather URL: {}", url);
     }
 
     @Override
@@ -40,6 +39,11 @@ public class OpenWeatherService implements WeatherService {
         String requestedUrl = String.format(url, city, key, lang);
         String response = getUrlContent(requestedUrl);
         return new JSONObject(response);
+    }
+
+    @Override
+    public String getResource() {
+        return url;
     }
 
     private String getUrlContent(String urlAddress) {
