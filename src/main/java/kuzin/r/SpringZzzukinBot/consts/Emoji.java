@@ -8,6 +8,7 @@ public enum Emoji {
     FISHING_POLE_AND_FISH("🎣"),
     DISGUISED_FACE("\uD83E\uDD78"),
     RAGE("😡"),
+    FACE_WITH_SYMBOLS_ON_MOUTH("🤬"),
     WINKING_FACE("😉"),
     SLIGHTLY_SMILING_FACE("🙂"),
     SMIRKING_FACE("😏"),
@@ -16,7 +17,12 @@ public enum Emoji {
     PARTYING_FACE("🥳"),
     THINKING_FACE("🤔"),
     WAVING_HAND("👋"),
-    UPSIDE_DOWN_FACE("🙃");
+    UPSIDE_DOWN_FACE("🙃"),
+    CLOWN_FACE("🤡"),
+    MAN_SHRUGGING("🤷‍"),
+    FACE_WITH_ROLLING_EYES("🙄"),
+    SMILING_FACE_WITH_HALO("😇"),
+    PAPERCLIP("📎");
 
 
     private final String emoji;
